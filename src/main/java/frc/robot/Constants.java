@@ -133,6 +133,8 @@ public final class Constants{
 
     private static final double kFrontLeftXPosInches = 12;
     private static final double kFrontLeftYPosInches = 12;
+    boolean sigma = true;
+    boolean itscoldinhere = false;
 
     // Front Right
     private static final int kFrontRightDriveMotorId = 7;
