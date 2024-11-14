@@ -1,34 +1,16 @@
 package frc.robot.subsystems;
 
-import org.ejml.data.ZMatrix;
-
-import com.fasterxml.jackson.databind.AnnotationIntrospector.ReferenceProperty.Type;
-import com.revrobotics.CANSparkBase;
-import com.revrobotics.CANSparkFlex;
 import com.revrobotics.CANSparkMax;
-import com.revrobotics.RelativeEncoder;
-import com.revrobotics.SparkAbsoluteEncoder;
-import com.revrobotics.SparkPIDController;
-import com.revrobotics.SparkRelativeEncoder;
-import com.revrobotics.CANSparkBase.ControlType;
 import com.revrobotics.CANSparkBase.IdleMode;
 import com.revrobotics.CANSparkLowLevel.MotorType;
 
-import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
-import edu.wpi.first.wpilibj.Encoder;
-import edu.wpi.first.wpilibj.MotorSafety;
 import edu.wpi.first.wpilibj.motorcontrol.PWMSparkMax;
-import edu.wpi.first.wpilibj.motorcontrol.Spark;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Constants;
 import frc.robot.State.eState;
 import frc.robot.State.tState;
-
-import frc.lib.util.CANSparkMaxUtil;
-import frc.lib.util.CANSparkMaxUtil.Usage;
 
 public class TrapAmpSubsystem extends SubsystemBase {
     public PWMSparkMax m_trapMotor;
@@ -39,14 +21,11 @@ public class TrapAmpSubsystem extends SubsystemBase {
     public eState eState; //Arm
 
     private double spinSpeed = 0;
-    private double spinCurrentLimit;
 
     private DutyCycleEncoder t_Encoder;
-    private SparkPIDController tPID_L;
-    private SparkPIDController tPID_R;
 
 
-    private ArmFeedforward tFeedforward;
+    //private ArmFeedforward tFeedforward;
 
     private double tPV; //curr position
     private double tSetPoint; //destination we want to go to
@@ -92,9 +71,6 @@ public class TrapAmpSubsystem extends SubsystemBase {
         m_LeftArmMotor.setIdleMode(IdleMode.kCoast);
 
         tState = frc.robot.State.tState.STOP;
-        
-        // tPID_L = setPID(m_LeftArmMotor);
-        // tPID_R = setPID(m_RightArmMotor);
 
         t_Encoder = new DutyCycleEncoder(frc.robot.Constants.AmpSystem.ampEncoderID); //PWM Channel
         
@@ -102,11 +78,7 @@ public class TrapAmpSubsystem extends SubsystemBase {
         double ffI = 0.0;
         double ffD = 0.0;
 
-        tFeedforward = new ArmFeedforward(0, 0.01, 0.01); //-0.15
         armPid = new PIDController(ffP, ffI, ffD);
-        
-        //eState = frc.robot.State.eState.HOME;
-
 
         //ARM SETPOINTS
         MIN = 10;
@@ -166,23 +138,25 @@ public class TrapAmpSubsystem extends SubsystemBase {
 
 
         if(OVERRIDE == true){
-            if(eState == frc.robot.State.eState.M_UP){
-                m_LeftArmMotor.set(0.1);
-                m_RightArmMotor.set(0.1);
-
+            
+            switch(eState) {
+                case IDLE:
+                    m_LeftArmMotor.set(0.01);
+                    m_RightArmMotor.set(0.01);
+                break;
+                case M_DOWN:
+                    m_LeftArmMotor.set(-0.1);
+                    m_RightArmMotor.set(-0.1);
+                break;
+                case M_UP:
+                    m_LeftArmMotor.set(0.1);
+                    m_RightArmMotor.set(0.1);
+                break;
+                default:
+                break;
+                
             }
 
-            if(eState == frc.robot.State.eState.M_DOWN){
-                m_LeftArmMotor.set(-0.1);
-                m_RightArmMotor.set(-0.1);
-
-            }
-
-            if(eState == frc.robot.State.eState.IDLE){
-               m_LeftArmMotor.set(0.01);
-                m_RightArmMotor.set(0.01);
-
-            }
         } else {
             //if within threshold
             if(tPV > MIN && tPV < MAX){
@@ -239,21 +213,22 @@ public class TrapAmpSubsystem extends SubsystemBase {
 
     //TRAP AMP Spinner
     public void goTrapWheelState(tState state){
-        if(state == frc.robot.State.tState.IN){
-            spinSpeed = 1;
-            tState = frc.robot.State.tState.IN;
-        }
 
-        if(state == frc.robot.State.tState.OUT){
-            spinSpeed = -1;
-             tState = frc.robot.State.tState.OUT;
-            
-        }
-
-        if(state == frc.robot.State.tState.STOP){
-            spinSpeed = 0;
-             tState = frc.robot.State.tState.STOP;
-
+        switch(state) {
+            case IN:
+                spinSpeed = 1;
+                tState = frc.robot.State.tState.IN;
+            break;
+            case OUT:
+                spinSpeed = -1;
+                tState = frc.robot.State.tState.OUT;
+            break;
+            case STOP:
+                spinSpeed = 0;
+                tState = frc.robot.State.tState.STOP;
+            break;
+            default:
+            break;
         }
 
     }
@@ -271,40 +246,39 @@ public class TrapAmpSubsystem extends SubsystemBase {
 
     //Arm
     public void goTrapArmState(eState state){
-        if(state == frc.robot.State.eState.HOME){
-            OVERRIDE = false;
-            setTSetPoint(toHome);
-            eState = frc.robot.State.eState.HOME;
-            
-        }
 
-        if(state == frc.robot.State.eState.TRAP_POS){
-            OVERRIDE = false;
-            setTSetPoint(toTrap);
-            eState = frc.robot.State.eState.TRAP_POS;
-            
-        }
+        switch(state) {
 
-        if(state == frc.robot.State.eState.AIM_POS){
-            OVERRIDE = false;
-            setTSetPoint(toAim);
-            eState = frc.robot.State.eState.AIM_POS;
+            case HOME:
+                OVERRIDE = false;
+                setTSetPoint(toHome);
+                eState = frc.robot.State.eState.HOME;
+            break;
+            case TRAP_POS:
+                OVERRIDE = false;
+                setTSetPoint(toTrap);
+                eState = frc.robot.State.eState.TRAP_POS;
+            break;
+            case AIM_POS:
+                OVERRIDE = false;
+                setTSetPoint(toAim);
+                eState = frc.robot.State.eState.AIM_POS;
+            break;
+            case M_UP:
+                eState = frc.robot.State.eState.M_UP;
+                OVERRIDE = true;
+            break;
+            case M_DOWN:
+                eState = frc.robot.State.eState.M_DOWN;
+                OVERRIDE = true;
+            break;
+            case M_IDLE:
+                eState = frc.robot.State.eState.M_IDLE;
+                OVERRIDE = true;
+            break;
+            default:
+            break;
 
-        }
-
-        if(state == frc.robot.State.eState.M_UP){
-            eState = frc.robot.State.eState.M_UP;
-            OVERRIDE = true;
-        }
-
-        if(state == frc.robot.State.eState.M_DOWN){
-            eState = frc.robot.State.eState.M_DOWN;
-            OVERRIDE = true;
-        }
-
-        if(state == frc.robot.State.eState.M_IDLE){
-            eState = frc.robot.State.eState.M_IDLE;
-            OVERRIDE = true;
         }
 
         if(!OVERRIDE)
